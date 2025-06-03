@@ -1,0 +1,45 @@
+#include <stdexcept>
+#include <cassert>
+
+template <typename T>
+class ScopedPtr {
+public:
+    ScopedPtr() = default;
+    explicit ScopedPtr(T* raw_ptr) noexcept : ptr_(raw_ptr) {}
+    ScopedPtr(const ScopedPtr&) = delete;
+
+    ~ScopedPtr() {
+        delete ptr_;
+    }
+
+    T* GetRawPtr() const noexcept {
+        return ptr_;
+    }
+
+    T* Release() noexcept {
+        T* raw_ptr = ptr_;
+        ptr_ = nullptr;
+        return raw_ptr;
+    }
+
+    explicit operator bool() const noexcept {
+        return ptr_ != nullptr;
+    }
+
+    T& operator*() const {
+        if (!ptr_) {
+            throw std::logic_error("Dereferencing null ScopedPtr");
+        }
+        return *ptr_;
+    }
+
+    T* operator->() const {
+        if (!ptr_) {
+            throw std::logic_error("Accessing through null ScopedPtr");
+        }
+        return ptr_;
+    }
+
+private:
+    T* ptr_ = nullptr;
+};
