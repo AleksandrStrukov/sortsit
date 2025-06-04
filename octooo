@@ -1,0 +1,108 @@
+#include <vector>
+#include <algorithm>
+
+template <typename T>
+class ScopedPtr {
+public:
+    ScopedPtr() : ptr_(nullptr) {}
+    explicit ScopedPtr(T* ptr) : ptr_(ptr) {}
+    ~ScopedPtr() { delete ptr_; }
+
+    ScopedPtr(const ScopedPtr&) = delete;
+    ScopedPtr& operator=(const ScopedPtr&) = delete;
+
+    ScopedPtr(ScopedPtr&& other) noexcept : ptr_(other.ptr_) {
+        other.ptr_ = nullptr;
+    }
+
+    ScopedPtr& operator=(ScopedPtr&& other) noexcept {
+        if (this != &other) {
+            delete ptr_;
+            ptr_ = other.ptr_;
+            other.ptr_ = nullptr;
+        }
+        return *this;
+    }
+
+    T* Get() const { return ptr_; }
+    T* operator->() const { return ptr_; }
+    T& operator*() const { return *ptr_; }
+
+private:
+    T* ptr_;
+};
+
+template <typename T>
+class PtrVector {
+public:
+    PtrVector() = default;
+
+    PtrVector(const PtrVector& other) {
+        for (const auto& item : other.items_) {
+            items_.push_back(ScopedPtr<T>(new T(*item.Get())));
+        }
+    }
+
+    PtrVector& operator=(const PtrVector& other) {
+        if (this != &other) {
+            PtrVector tmp(other);
+            std::swap(items_, tmp.items_);
+        }
+        return *this;
+    }
+
+    size_t Size() const { return items_.size(); }
+    bool Empty() const { return items_.empty(); }
+
+    T& operator[](size_t index) { return *items_[index]; }
+    const T& operator[](size_t index) const { return *items_[index]; }
+
+    T& Back() { return *items_.back(); }
+    const T& Back() const { return *items_.back(); }
+
+    void PushBack(ScopedPtr<T>&& item) {
+        items_.push_back(std::move(item));
+    }
+
+private:
+    std::vector<ScopedPtr<T>> items_;
+};
+
+class Tentacle {
+public:
+    Tentacle(int id) : id_(id), linked_tentacle_(nullptr) {}
+
+    int GetId() const { return id_; }
+    Tentacle* GetLinkedTentacle() const { return linked_tentacle_; }
+
+    void LinkTo(Tentacle& tentacle) { linked_tentacle_ = &tentacle; }
+    void Unlink() { linked_tentacle_ = nullptr; }
+
+private:
+    int id_;
+    Tentacle* linked_tentacle_;
+};
+
+class Octopus {
+public:
+    Octopus() : Octopus(8) {}
+    
+    explicit Octopus(int num_tentacles) {
+        for (int i = 0; i < num_tentacles; ++i) {
+            tentacles_.PushBack(ScopedPtr<Tentacle>(new Tentacle(i + 1)));
+        }
+    }
+
+    int GetTentacleCount() const { return tentacles_.Size(); }
+
+    Tentacle& GetTentacle(int index) { return tentacles_[index]; }
+    const Tentacle& GetTentacle(int index) const { return tentacles_[index]; }
+
+    Tentacle& AddTentacle() {
+        tentacles_.PushBack(ScopedPtr<Tentacle>(new Tentacle(GetTentacleCount() + 1)));
+        return tentacles_.Back();
+    }
+
+private:
+    PtrVector<Tentacle> tentacles_;
+};
